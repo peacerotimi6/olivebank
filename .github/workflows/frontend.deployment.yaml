@@ -1,12 +1,12 @@
-name: Build and Deploy OliveBank Frontend
+name: Build and Deploy OliveBank Backend
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'App/frontend/**'
-      - '.github/workflows/frontend.deployment.yaml'
+      - 'App/backend/**'
+      - '.github/workflows/backend.deployment.yaml'
 
   workflow_dispatch:
 
@@ -15,20 +15,20 @@ permissions:
   contents: read
 
 concurrency:
-  group: olive-bank-frontend-deployment
+  group: olive-bank-backend-deployment
   cancel-in-progress: false
 
 jobs:
   build-and-deploy:
-    name: Build, Push and Deploy Frontend
+    name: Build, Push and Deploy Backend
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     env:
       ACR_NAME: ${{ vars.ACR_NAME }}
       ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
-      IMAGE_NAME: ${{ vars.FRONTEND_IMAGE_NAME }}
-      WEBAPP_NAME: ${{ vars.FRONTEND_WEBAPP_NAME }}
+      IMAGE_NAME: ${{ vars.BACKEND_IMAGE_NAME }}
+      WEBAPP_NAME: ${{ vars.BACKEND_WEBAPP_NAME }}
       RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
       IMAGE_TAG: ${{ github.sha }}
 
@@ -36,7 +36,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate configuration
+      - name: Validate deployment configuration
         shell: bash
         run: |
           set -euo pipefail
@@ -54,21 +54,21 @@ jobs:
             fi
           done
 
-          if [ ! -f App/frontend/Dockerfile ]; then
-            echo "::error::Dockerfile not found at App/frontend/Dockerfile"
+          if [ ! -f App/backend/Dockerfile ]; then
+            echo "::error::Dockerfile not found at App/backend/Dockerfile"
             exit 1
           fi
 
-          echo "Configuration validated."
+          echo "Deployment configuration validated."
 
-      - name: Sign in to Azure
+      - name: Log in to Azure
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Verify existing Web App
+      - name: Verify existing backend Web App
         shell: bash
         run: |
           set -euo pipefail
@@ -79,71 +79,10 @@ jobs:
             --query "{name:name,state:state,host:defaultHostName}" \
             --output table
 
-      - name: Check App Service container configuration
+      - name: Check backend container configuration
         shell: bash
         run: |
           set -euo pipefail
 
           az webapp sitecontainers list \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --output json
-
-      - name: Log in to ACR
-        shell: bash
-        run: |
-          set -euo pipefail
-          az acr login --name "$ACR_NAME"
-
-      - name: Build frontend image
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          docker build \
-            --platform linux/amd64 \
-            --file App/frontend/Dockerfile \
-            --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
-            App/frontend
-
-      - name: Push image to ACR
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
-
-      - name: Configure App Service container
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          az webapp sitecontainers update \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --container-name main \
-            --image "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
-            --target-port 80 \
-            --is-main true
-
-      - name: Restart App Service
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          az webapp restart \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP"
-
-      - name: Verify deployment
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          az webapp show \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query "{name:name,state:state,host:defaultHostName}" \
-            --output table
-
-          echo "Deployed image:"
-          echo "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+            --name "$WEB
