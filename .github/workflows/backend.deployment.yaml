@@ -1,4 +1,3 @@
-
 name: Build and Deploy Backend
 
 on:
@@ -96,4 +95,57 @@ jobs:
 
           docker build \
             --platform linux/amd64 \
-            --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE
+            --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
+            App/backend
+
+      - name: Push image to Azure Container Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Verify App Service container configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp sitecontainers list \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --output table
+
+      - name: Update backend App Service container
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp sitecontainers update \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --container-name main \
+            --image "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
+            --target-port 8081 \
+            --is-main true
+
+      - name: Restart backend App Service
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp restart \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP"
+
+      - name: Show deployment URL and image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HOST=$(az webapp show \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query defaultHostName \
+            --output tsv)
+
+          echo "Backend URL: https://$HOST"
+          echo "Deployed image: $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
