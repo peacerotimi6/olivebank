@@ -1,0 +1,129 @@
+
+name: Build and Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/frontend/**'
+      - '.github/workflows/frontend.deployment.yaml'
+
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: olive-bank-frontend-deployment
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    name: Build, Push and Deploy Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+      IMAGE_NAME: ${{ vars.FRONTEND_IMAGE_NAME }}
+      WEBAPP_NAME: ${{ vars.FRONTEND_WEBAPP_NAME }}
+      RESOURCE_GROUP: ${{ vars.RESOURCE_GROUP }}
+      IMAGE_TAG: ${{ github.sha }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate deployment configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for name in \
+            ACR_NAME \
+            ACR_LOGIN_SERVER \
+            IMAGE_NAME \
+            WEBAPP_NAME \
+            RESOURCE_GROUP
+          do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing GitHub Actions variable: $name"
+              exit 1
+            fi
+          done
+
+          if [ ! -f app/frontend/Dockerfile ]; then
+            echo "::error::app/frontend/Dockerfile was not found."
+            exit 1
+          fi
+
+          echo "Deployment configuration validated."
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Azure Container Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          az acr login --name "$ACR_NAME"
+
+      - name: Build frontend Docker image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker build \
+            --platform linux/amd64 \
+            --file app/frontend/Dockerfile \
+            --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
+            app/frontend
+
+      - name: Push frontend image to Azure Container Registry
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Update frontend App Service container
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp sitecontainers update \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --container-name main \
+            --image "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
+            --target-port 80 \
+            --is-main true
+
+      - name: Restart frontend App Service
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp restart \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP"
+
+      - name: Show deployment status
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp show \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "{name:name,state:state,host:defaultHostName}" \
+            --output table
+
+          echo "Deployed image:"
+          echo "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"

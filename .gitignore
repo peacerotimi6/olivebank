@@ -1,0 +1,79 @@
+# Terraform state and local configuration
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+mail.env
+secrets/
+*.pem
+*.key
+
+# Dependencies and build output
+node_modules/
+dist/
+target/
+build/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+
+# Mac system files
+.DS_Store
+
+# Logs and temporary files
+*.log
+*.bak
+*.tmp
+
+# Java and Maven build output
+**/target/
+
+# Node and Angular build output
+**/node_modules/
+**/dist/
+
+# Temporary and backup files
+*.save
+*.backup
+*.bak
+*.before_cleanup
+*.fix-backup
+**/deployment-backup/
+
+# Local debug artifacts
+127.0.0.1:0:
+
+# Java and Maven build output
+**/target/
+
+# Node and Angular build output
+**/node_modules/
+**/dist/
+
+# Temporary and backup files
+*.save
+*.backup
+*.bak
+*.before_cleanup
+*.fix-backup
+**/deployment-backup/
+# Python cache
+**/__pycache__/
+*.pyc
+
+# Local backup files
+*.before_account_test_fix

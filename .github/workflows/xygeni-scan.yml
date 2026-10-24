@@ -1,0 +1,34 @@
+name: Xygeni Security Scan
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  xygeni-scan:
+    name: Xygeni Security Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: maven
+          cache-dependency-path: app/backend/pom.xml
+
+      - name: Run Xygeni Scanner
+        uses: xygeni/xygeni-action@v3.2.0
+        id: xygeni-scan
+        with:
+          xygeni_url: https://api.xygeni.io
+          token: ${{ secrets.XYGENI_TOKEN }}
+          gh_token: ${{ secrets.PAT_FOR_XYGENI_SCAN }}

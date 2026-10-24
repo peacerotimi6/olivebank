@@ -1,0 +1,7 @@
+
+# Exclude local development files from Docker builds
+node_modules
+.angular
+dist
+coverage
+.git

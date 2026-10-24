@@ -1,0 +1,141 @@
+<section class="hero bg-gradient-to-r from-green-700 via-emerald-600 to-lime-500 m-[-0.5rem]">
+  <div class="container-fluid">
+    <div class="panel-wrapper">
+      <!-- Left Side -->
+      <div class="left-panel p-4">
+        <h1 class="text-white text-4xl sm:text-5xl md:text-6xl font-semibold mb-4 flex items-center gap-3">
+          <img
+            src="assets/ChatGPT%20Image%20Oct%209,%202026,%2011_21_42%20PM.png"
+            alt="Olive Bank Logo"
+            class="w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-lg bg-white p-1"
+          />
+          <span>Olive Bank</span>
+        </h1>
+
+        <p class="text-white text-lg sm:text-xl mb-4">
+          Your Trusted Partner for Smarter Banking
+        </p>
+
+        <div *ngIf="!authService.isLoggedIn()">
+          <button
+            class="bg-white text-green-800 px-4 py-2 rounded shadow-md font-semibold hover:bg-green-50 transition"
+            routerLink="/register">
+            Create Account
+          </button>
+        </div>
+
+        <div *ngIf="authService.isLoggedIn()">
+          <button
+            class="bg-white text-green-800 px-4 py-2 rounded shadow-md text-sm font-semibold hover:bg-green-50 transition"
+            routerLink="/dashboard">
+            Dashboard
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Side -->
+      <div class="right-panel">
+        <img
+          src="assets/dashboard.png"
+          alt="Olive Bank Dashboard"
+          class="w-full rounded-lg border border-gray-200"
+        >
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="py-8 m-[-0.5rem]">
+  <div class="container mx-auto px-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+      <!-- Secure Transactions -->
+      <div class="min-w-0 p-4 bg-white rounded-lg border border-gray-200 hover:border-green-600 transition duration-300 transform hover:scale-105">
+        <h4 class="mb-2 font-semibold text-gray-600 text-lg">
+          <span class="p-3 mr-4 text-green-700 bg-green-100 rounded-full">
+            <i class="fas fa-shield-alt text-green-700 text-3xl"></i>
+          </span>
+          Secure Transactions
+        </h4>
+        <p class="text-gray-600 text-normal">
+          Your transactions are protected by security measures designed to help safeguard your financial data.
+        </p>
+      </div>
+
+      <!-- Easy Fund Management -->
+      <div class="min-w-0 p-4 bg-white rounded-lg border border-gray-200 hover:border-green-600 transition duration-300 transform hover:scale-105">
+        <h4 class="mb-2 font-semibold text-gray-600 text-lg">
+          <span class="p-3 mr-4 text-green-600 bg-green-100 rounded-full">
+            <i class="fas fa-wallet text-green-600 text-3xl mb-4"></i>
+          </span>
+          Easy Fund Management
+        </h4>
+        <p class="text-gray-600 text-normal">
+          Manage your funds with an intuitive interface for everyday banking activities.
+        </p>
+      </div>
+
+      <!-- Multi-User Support -->
+      <div class="min-w-0 p-4 bg-white rounded-lg border border-gray-200 hover:border-green-600 transition duration-300 transform hover:scale-105">
+        <h4 class="mb-2 font-semibold text-gray-600 text-lg">
+          <span class="p-3 mr-4 text-lime-700 bg-lime-100 rounded-full">
+            <i class="fas fa-users text-lime-700 text-3xl mb-4"></i>
+          </span>
+          Multi-User Support
+        </h4>
+        <p class="text-gray-600 text-normal">
+          Convenient account access for users managing their personal banking needs.
+        </p>
+      </div>
+
+      <!-- Transaction History -->
+      <div class="min-w-0 p-4 bg-white rounded-lg border border-gray-200 hover:border-green-600 transition duration-300 transform hover:scale-105">
+        <h4 class="mb-2 font-semibold text-gray-600 text-lg">
+          <span class="p-3 mr-4 text-emerald-600 bg-emerald-100 rounded-full">
+            <i class="fas fa-history text-emerald-600 text-3xl mb-4"></i>
+          </span>
+          Transaction History
+        </h4>
+        <p class="text-gray-600 text-normal">
+          Review your transaction records to keep track of your banking activity.
+        </p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<footer class="bg-gray-950 text-white py-4 mt-8 m-[-0.5rem]">
+  <div class="container mx-auto text-center">
+    <p>&copy; 2026 Olive Bank. All rights reserved.</p>
+
+    <!-- GitHub Repository Links -->
+    <div class="mt-4 flex flex-wrap p-3 justify-center items-center rowgap">
+      <span class="text-white font-bold text-xl mr-2">Explore the Project</span>
+
+      <a
+        href="https://github.com/abhi9720/BankingPortal-UI"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="mr-4 text-white border border-gray-300 p-2 shadow-lg hover:text-lime-300 transition-all">
+        <i class="fab fa-github mr-1"></i> UI Repo
+      </a>
+
+      <a
+        href="https://github.com/abhi9720/BankingPortal-API"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-white mr-6 border border-gray-300 p-2 shadow-lg hover:text-lime-300 transition-all">
+        <i class="fab fa-github mr-1"></i> API Repo
+      </a>
+
+      <a
+        href="https://abhi-9720.github.io/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-white border border-gray-300 p-2 shadow-lg hover:text-lime-300 transition-all">
+        <i class="fas fa-user-circle mr-1"></i> Portfolio
+      </a>
+    </div>
+  </div>
+</footer>

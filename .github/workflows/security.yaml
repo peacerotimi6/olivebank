@@ -1,0 +1,112 @@
+name: Manual Security Scans & Email Alert
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  security-checks:
+    runs-on: ubuntu-latest
+
+    env:
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      ACR_LOGIN_SERVER: ${{ vars.ACR_LOGIN_SERVER }}
+      BACKEND_IMAGE_NAME: ${{ vars.BACKEND_IMAGE_NAME }}
+      FRONTEND_IMAGE_NAME: ${{ vars.FRONTEND_IMAGE_NAME }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: app/backend/pom.xml
+
+      - name: Log in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Log in to Azure Container Registry
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ vars.ACR_LOGIN_SERVER }}/${{ vars.BACKEND_IMAGE_NAME }}:latest
+          format: table
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: ${{ vars.ACR_LOGIN_SERVER }}/${{ vars.FRONTEND_IMAGE_NAME }}:latest
+          format: table
+          exit-code: '0'
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: CRITICAL,HIGH,MEDIUM
+
+      - name: Build backend
+        working-directory: app/backend
+        run: mvn --batch-mode clean verify -DskipTests
+
+      - name: SonarCloud scan - Backend
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          projectBaseDir: app/backend
+          args: >
+            -Dsonar.projectKey=${{ secrets.SONAR_BACKEND_PROJECT_KEY }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+            -Dsonar.java.binaries=target/classes
+            -Dsonar.exclusions=**/test/**,**/*Test.java
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: SonarCloud scan - Frontend
+        uses: SonarSource/sonarqube-scan-action@v5
+        with:
+          projectBaseDir: app/frontend
+          args: >
+            -Dsonar.projectKey=${{ secrets.SONAR_FRONTEND_PROJECT_KEY }}
+            -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Send email notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "SecureBank - Security Scan Workflow Result: ${{ job.status }}"
+          to: ${{ secrets.SECURITY_ALERT_EMAIL_TO }}
+          from: ${{ secrets.SECURITY_ALERT_EMAIL_FROM }}
+          body: |
+            SecureBank security workflow has finished.
+
+            Overall workflow status: ${{ job.status }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+
+            Trivy scanned the backend and frontend container images.
+            SonarCloud scans were configured for both projects.
+
+            Review the workflow logs for individual scan results:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
