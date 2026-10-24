@@ -49,16 +49,17 @@ jobs:
             RESOURCE_GROUP
           do
             if [ -z "${!name}" ]; then
-              echo "::error::Missing repository variable: $name"
+              echo "::error::Missing GitHub Actions variable: $name"
               exit 1
             fi
           done
 
           if [ ! -f App/frontend/Dockerfile ]; then
             echo "::error::Dockerfile not found at App/frontend/Dockerfile"
-            echo "Check the directory capitalization in your repository."
             exit 1
           fi
+
+          echo "Configuration validated."
 
       - name: Sign in to Azure
         uses: azure/login@v2
@@ -75,8 +76,18 @@ jobs:
           az webapp show \
             --name "$WEBAPP_NAME" \
             --resource-group "$RESOURCE_GROUP" \
-            --query "{name:name,state:state}" \
+            --query "{name:name,state:state,host:defaultHostName}" \
             --output table
+
+      - name: Check App Service container configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp sitecontainers list \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --output json
 
       - name: Log in to ACR
         shell: bash
@@ -99,7 +110,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
 
       - name: Configure App Service container
