@@ -1,12 +1,11 @@
-
-name: Build and Deploy Frontend
+name: Build and Deploy OliveBank Frontend
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'app/frontend/**'
+      - 'App/frontend/**'
       - '.github/workflows/frontend.deployment.yaml'
 
   workflow_dispatch:
@@ -37,7 +36,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate deployment configuration
+      - name: Validate configuration
         shell: bash
         run: |
           set -euo pipefail
@@ -50,49 +49,60 @@ jobs:
             RESOURCE_GROUP
           do
             if [ -z "${!name}" ]; then
-              echo "::error::Missing GitHub Actions variable: $name"
+              echo "::error::Missing repository variable: $name"
               exit 1
             fi
           done
 
-          if [ ! -f app/frontend/Dockerfile ]; then
-            echo "::error::app/frontend/Dockerfile was not found."
+          if [ ! -f App/frontend/Dockerfile ]; then
+            echo "::error::Dockerfile not found at App/frontend/Dockerfile"
+            echo "Check the directory capitalization in your repository."
             exit 1
           fi
 
-          echo "Deployment configuration validated."
-
-      - name: Log in to Azure
+      - name: Sign in to Azure
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Log in to Azure Container Registry
+      - name: Verify existing Web App
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp show \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "{name:name,state:state}" \
+            --output table
+
+      - name: Log in to ACR
         shell: bash
         run: |
           set -euo pipefail
           az acr login --name "$ACR_NAME"
 
-      - name: Build frontend Docker image
+      - name: Build frontend image
         shell: bash
         run: |
           set -euo pipefail
 
           docker build \
             --platform linux/amd64 \
-            --file app/frontend/Dockerfile \
+            --file App/frontend/Dockerfile \
             --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
-            app/frontend
+            App/frontend
 
-      - name: Push frontend image to Azure Container Registry
+      - name: Push image to ACR
         shell: bash
         run: |
           set -euo pipefail
+
           docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
 
-      - name: Update frontend App Service container
+      - name: Configure App Service container
         shell: bash
         run: |
           set -euo pipefail
@@ -105,7 +115,7 @@ jobs:
             --target-port 80 \
             --is-main true
 
-      - name: Restart frontend App Service
+      - name: Restart App Service
         shell: bash
         run: |
           set -euo pipefail
@@ -114,7 +124,7 @@ jobs:
             --name "$WEBAPP_NAME" \
             --resource-group "$RESOURCE_GROUP"
 
-      - name: Show deployment status
+      - name: Verify deployment
         shell: bash
         run: |
           set -euo pipefail
