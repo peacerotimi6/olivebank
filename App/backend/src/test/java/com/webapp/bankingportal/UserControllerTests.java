@@ -498,7 +498,21 @@ public class UserControllerTests extends BaseTest {
                         .string(String.format(ApiMessages.OTP_SENT_SUCCESS.getMessage(), user.getEmail())));
 
         val receivedMessages = GreenMailJavaMailSender.getReceivedMessagesForDomain(user.getEmail());
-        val otpVerificationRequest = new OtpVerificationRequest(accountNumber, getOtpFromEmail(receivedMessages[0]));
+
+        int otpMessageIndex = -1;
+        for (int i = 0; i < receivedMessages.length; i++) {
+            if (ApiMessages.EMAIL_SUBJECT_OTP.getMessage().equals(receivedMessages[i].getSubject())) {
+                otpMessageIndex = i;
+                break;
+            }
+        }
+
+        if (otpMessageIndex < 0) {
+            throw new AssertionError("OTP verification email was not received");
+        }
+
+        val otpVerificationRequest = new OtpVerificationRequest(
+                accountNumber, getOtpFromEmail(receivedMessages[otpMessageIndex]));
 
         val loginResult = mockMvc.perform(MockMvcRequestBuilders
                 .post("/api/users/verify-otp")

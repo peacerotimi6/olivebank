@@ -1,4 +1,3 @@
-
 package com.webapp.bankingportal.entity;
 
 import java.math.BigDecimal;
@@ -57,7 +56,8 @@ public class Account {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal balance = BigDecimal.ZERO;
 
-    @Column(nullable = false)
+    // A PIN can be null until the user creates one.
+    @Column(nullable = true)
     private String pin;
 
     @OneToOne(fetch = FetchType.LAZY)
