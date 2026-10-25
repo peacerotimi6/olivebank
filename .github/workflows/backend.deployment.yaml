@@ -1,3 +1,4 @@
+
 name: Build and Deploy Backend
 on:
   push:
@@ -35,7 +36,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate configuration
+      - name: Validate deployment configuration
         shell: bash
         run: |
           set -euo pipefail
@@ -53,12 +54,15 @@ jobs:
             fi
           done
 
-          if [ ! -f app/backend/Dockerfile ]; then
-            echo "::error::app/backend/Dockerfile was not found."
+          if [ ! -f App/backend/Dockerfile ]; then
+            echo "::error::App/backend/Dockerfile was not found."
             exit 1
           fi
 
           echo "Deployment configuration validated."
+          echo "Registry: $ACR_LOGIN_SERVER"
+          echo "Image: $IMAGE_NAME:$IMAGE_TAG"
+          echo "Web App: $WEBAPP_NAME"
 
       - name: Log in to Azure
         uses: azure/login@v2
@@ -91,51 +95,4 @@ jobs:
 
           docker build \
             --platform linux/amd64 \
-            --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
-            App/backend
-
-      - name: Push backend image to ACR
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
-
-      - name: Update backend App Service container
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          az webapp config appsettings set \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --settings WEBSITES_PORT=8081 \
-            --output none
-
-          az webapp config container set \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --docker-custom-image-name "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
-            --docker-registry-server-url "https://$ACR_LOGIN_SERVER"
-
-      - name: Restart backend Web App
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          az webapp restart \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP"
-
-      - name: Show deployment status
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          HOST=$(az webapp show \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --query defaultHostName \
-            --output tsv)
-
-          echo "Deployed image:"
-          echo "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+            --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE
