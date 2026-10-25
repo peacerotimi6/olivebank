@@ -1,5 +1,6 @@
 
 name: Build and Deploy Backend
+
 on:
   push:
     branches:
@@ -7,7 +8,6 @@ on:
     paths:
       - 'App/backend/**'
       - '.github/workflows/backend.deployment.yaml'
-
   workflow_dispatch:
 
 permissions:
@@ -95,4 +95,64 @@ jobs:
 
           docker build \
             --platform linux/amd64 \
-            --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE
+            --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
+            --file App/backend/Dockerfile \
+            App/backend
+
+      - name: Push backend Docker image
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+
+      - name: Configure backend Web App container
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp config set \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --linux-fx-version "DOCKER|$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+
+          az webapp config appsettings set \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --settings WEBSITES_PORT=8080
+
+      - name: Restart backend Web App
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          az webapp restart \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP"
+
+      - name: Verify backend health
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          HEALTH_URL="https://$(az webapp show \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query defaultHostName \
+            --output tsv)/actuator/health"
+
+          echo "Checking backend health at $HEALTH_URL"
+
+          for attempt in $(seq 1 18); do
+            if curl --fail --silent --show-error "$HEALTH_URL"; then
+              echo
+              echo "Backend health check passed."
+              exit 0
+            fi
+
+            echo "Attempt $attempt/18: backend is starting. Waiting 10 seconds..."
+            sleep 10
+          done
+
+          echo "::error::Backend health check failed."
+          exit 1
