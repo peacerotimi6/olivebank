@@ -8,6 +8,7 @@ on:
     paths:
       - 'App/backend/**'
       - '.github/workflows/backend.deployment.yaml'
+
   workflow_dispatch:
 
 permissions:
@@ -54,15 +55,50 @@ jobs:
             fi
           done
 
+          if [ "$WEBAPP_NAME" != "olivebank-dev-backend" ]; then
+            echo "::error::Unexpected backend Web App name: $WEBAPP_NAME"
+            exit 1
+          fi
+
           if [ ! -f App/backend/Dockerfile ]; then
             echo "::error::App/backend/Dockerfile was not found."
             exit 1
           fi
 
-          echo "Deployment configuration validated."
+          if [ ! -f App/backend/pom.xml ]; then
+            echo "::error::App/backend/pom.xml was not found."
+            exit 1
+          fi
+
           echo "Registry: $ACR_LOGIN_SERVER"
           echo "Image: $IMAGE_NAME:$IMAGE_TAG"
           echo "Web App: $WEBAPP_NAME"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+          cache-dependency-path: App/backend/pom.xml
+
+      - name: Build backend JAR
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd App/backend
+
+          if [ -f mvnw ]; then
+            chmod +x mvnw
+            ./mvnw -B -DskipTests package
+          else
+            mvn -B -DskipTests package
+          fi
+
+          if ! compgen -G "target/*.jar" > /dev/null; then
+            echo "::error::No JAR was produced in App/backend/target."
+            exit 1
+          fi
 
       - name: Log in to Azure
         uses: azure/login@v2
@@ -103,23 +139,45 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
 
-      - name: Configure backend Web App container
+      - name: Verify existing backend site container
         shell: bash
         run: |
           set -euo pipefail
 
-          az webapp config set \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --linux-fx-version "DOCKER|$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+          CONTAINER_NAME="olivebank-dev-backend"
 
-          az webapp config appsettings set \
+          CONTAINER_COUNT=$(az webapp sitecontainers list \
             --name "$WEBAPP_NAME" \
             --resource-group "$RESOURCE_GROUP" \
-            --settings WEBSITES_PORT=8080
+            --query "[?name=='$CONTAINER_NAME' && isMain==\`true\`].name | length(@)" \
+            --output tsv)
+
+          if [ "$CONTAINER_COUNT" != "1" ]; then
+            echo "::error::Expected exactly one existing main container named $CONTAINER_NAME."
+            echo "::error::No container was changed."
+            exit 1
+          fi
+
+          echo "Verified existing main container: $CONTAINER_NAME"
+
+      - name: Update existing backend container
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+          CONTAINER_NAME="olivebank-dev-backend"
+
+          az webapp sitecontainers update \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --container-name "$CONTAINER_NAME" \
+            --image "$IMAGE" \
+            --target-port 8081
+
+          echo "Updated existing backend container to $IMAGE"
 
       - name: Restart backend Web App
         shell: bash
@@ -135,13 +193,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          HEALTH_URL="https://$(az webapp show \
+          HOST=$(az webapp show \
             --name "$WEBAPP_NAME" \
             --resource-group "$RESOURCE_GROUP" \
             --query defaultHostName \
-            --output tsv)/actuator/health"
+            --output tsv)
 
-          echo "Checking backend health at $HEALTH_URL"
+          HEALTH_URL="https://$HOST/actuator/health"
 
           for attempt in $(seq 1 18); do
             if curl --fail --silent --show-error "$HEALTH_URL"; then
@@ -150,9 +208,9 @@ jobs:
               exit 0
             fi
 
-            echo "Attempt $attempt/18: backend is starting. Waiting 10 seconds..."
+            echo "Attempt $attempt/18: waiting for backend startup..."
             sleep 10
           done
 
-          echo "::error::Backend health check failed."
+          echo "::error::Backend health check failed at $HEALTH_URL"
           exit 1
