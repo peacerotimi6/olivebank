@@ -35,7 +35,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate deployment configuration
+      - name: Validate configuration
         shell: bash
         run: |
           set -euo pipefail
@@ -53,15 +53,12 @@ jobs:
             fi
           done
 
-          if [ ! -f App/backend/Dockerfile ]; then
-            echo "::error::App/backend/Dockerfile was not found."
+          if [ ! -f app/backend/Dockerfile ]; then
+            echo "::error::app/backend/Dockerfile was not found."
             exit 1
           fi
 
           echo "Deployment configuration validated."
-          echo "Registry: $ACR_LOGIN_SERVER"
-          echo "Image: $IMAGE_NAME:$IMAGE_TAG"
-          echo "Web App: $WEBAPP_NAME"
 
       - name: Log in to Azure
         uses: azure/login@v2
@@ -97,36 +94,30 @@ jobs:
             --tag "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
             App/backend
 
-      - name: Push image to Azure Container Registry
+      - name: Push backend image to ACR
         shell: bash
         run: |
           set -euo pipefail
           docker push "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
-
-      - name: Verify App Service container configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          az webapp sitecontainers list \
-            --name "$WEBAPP_NAME" \
-            --resource-group "$RESOURCE_GROUP" \
-            --output table
 
       - name: Update backend App Service container
         shell: bash
         run: |
           set -euo pipefail
 
-          az webapp sitecontainers update \
+          az webapp config appsettings set \
             --name "$WEBAPP_NAME" \
             --resource-group "$RESOURCE_GROUP" \
-            --container-name main \
-            --image "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
-            --target-port 8081 \
-            --is-main true
+            --settings WEBSITES_PORT=8081 \
+            --output none
 
-      - name: Restart backend App Service
+          az webapp config container set \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --docker-custom-image-name "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG" \
+            --docker-registry-server-url "https://$ACR_LOGIN_SERVER"
+
+      - name: Restart backend Web App
         shell: bash
         run: |
           set -euo pipefail
@@ -135,7 +126,7 @@ jobs:
             --name "$WEBAPP_NAME" \
             --resource-group "$RESOURCE_GROUP"
 
-      - name: Show deployment URL and image
+      - name: Show deployment status
         shell: bash
         run: |
           set -euo pipefail
@@ -146,5 +137,5 @@ jobs:
             --query defaultHostName \
             --output tsv)
 
-          echo "Backend URL: https://$HOST"
-          echo "Deployed image: $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+          echo "Deployed image:"
+          echo "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
