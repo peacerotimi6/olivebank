@@ -168,7 +168,7 @@ jobs:
           set -euo pipefail
 
           IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
-          CONTAINER_NAME="olivebank-dev-backend"
+          CONTAINER_NAME="olive-bank-backend"
 
           az webapp sitecontainers update \
             --name "$WEBAPP_NAME" \
