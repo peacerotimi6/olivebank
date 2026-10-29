@@ -55,7 +55,7 @@ jobs:
             fi
           done
 
-          if [ "$WEBAPP_NAME" != "olivebank-dev-backend" ]; then
+          if [ "$WEBAPP_NAME" != "olive-bank-backend" ]; then
             echo "::error::Unexpected backend Web App name: $WEBAPP_NAME"
             exit 1
           fi
