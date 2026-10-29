@@ -55,7 +55,7 @@ jobs:
             fi
           done
 
-          if [ "$WEBAPP_NAME" != "olivebank-dev-backend" ]; then
+          if [ "$WEBAPP_NAME" != "olive-bank-backend" ]; then
             echo "::error::Unexpected backend Web App name: $WEBAPP_NAME"
             exit 1
           fi
@@ -146,7 +146,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          CONTAINER_NAME="olivebank-dev-backend"
+          CONTAINER_NAME="main"
 
           CONTAINER_COUNT=$(az webapp sitecontainers list \
             --name "$WEBAPP_NAME" \
@@ -168,7 +168,7 @@ jobs:
           set -euo pipefail
 
           IMAGE="$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
-          CONTAINER_NAME="olivebank-dev-backend"
+          CONTAINER_NAME="main"
 
           az webapp sitecontainers update \
             --name "$WEBAPP_NAME" \

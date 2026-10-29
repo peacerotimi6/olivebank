@@ -263,14 +263,24 @@ public abstract class BaseTest {
     protected static String getOtpFromEmail(MimeMessage message)
             throws IOException, MessagingException {
 
-        val content = getTextFromMimeMultipart((MimeMultipart) message.getContent());
-        val pattern = Pattern.compile("<h2.*?>(\\d+)</h2>");
-        val matcher = pattern.matcher(content);
-        if (matcher.find()) {
-            return matcher.group(1);
+        Object body = message.getContent();
+        String content = body instanceof MimeMultipart
+                ? getTextFromMimeMultipart((MimeMultipart) body)
+                : String.valueOf(body);
+
+        val patterns = new Pattern[] {
+                Pattern.compile("(?is)<h2\\b[^>]*>\\s*(\\d{6})\\s*</h2>"),
+                Pattern.compile("(?<!\\d)(\\d{6})(?!\\d)")
+        };
+
+        for (val pattern : patterns) {
+            val matcher = pattern.matcher(content);
+            if (matcher.find()) {
+                return matcher.group(1);
+            }
         }
 
-        throw new RuntimeException("OTP not found in email");
+        throw new RuntimeException("OTP not found in email body");
     }
 
     protected AmountRequest createAmountRequest(String accountNumber, String pin, BigDecimal amount) {
