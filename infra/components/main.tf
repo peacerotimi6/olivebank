@@ -19,14 +19,3 @@ module "acr" {
   resource_group_name = azurerm_resource_group.this.name
 }
 
-module "aks" {
-  source              = "../modules/aks"
-  location            = var.location
-  project_name        = var.project_name
-  environment         = var.environment
-  resource_group_name = azurerm_resource_group.this.name
-  acr_id              = module.acr.acr_id
-  subnet_id           = module.network.aks_subnet_id
-  node_size           = "Standard_D2as_v7"
-  node_count          = 2
-}
