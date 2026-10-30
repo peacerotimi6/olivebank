@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Validate Xygeni credentials
         shell: bash
@@ -35,11 +37,11 @@ jobs:
             exit 1
           fi
 
-          echo "Xygeni credentials detected."
+          echo "Xygeni API token is configured."
 
-      - name: Run Xygeni Scanner
-        uses: xygeni/xygeni-action@v3.2.0
-        env:
-          XYGENI_TOKEN: ${{ secrets.XYGENI_TOKEN }}
+      - name: Run Xygeni Security Scanner
+        uses: xygeni/xygeni-action@v6.4.0
+        id: xygeni-scan
         with:
           token: ${{ secrets.XYGENI_TOKEN }}
+          command: scan --never-fail -d .
