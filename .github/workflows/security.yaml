@@ -5,11 +5,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write
   contents: read
+  id-token: write
 
 jobs:
-  security-checks:
+  security-scan:
+    name: Olive Bank Security Scan
     runs-on: ubuntu-latest
 
     env:
@@ -28,22 +29,57 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-          cache-dependency-path: App/backend/pom.xml
 
-      - name: Log in to Azure with OIDC
+      - name: Azure login using OIDC
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Log in to Azure Container Registry
+      - name: Login to Azure Container Registry
         run: az acr login --name "$ACR_NAME"
+
+      - name: Find latest frontend and backend image tags
+        id: image-tags
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          FRONTEND_TAG=$(az acr repository show-tags \
+            --name "$ACR_NAME" \
+            --repository "$FRONTEND_IMAGE_NAME" \
+            --orderby time_desc \
+            --top 1 \
+            --output tsv)
+
+          BACKEND_TAG=$(az acr repository show-tags \
+            --name "$ACR_NAME" \
+            --repository "$BACKEND_IMAGE_NAME" \
+            --orderby time_desc \
+            --top 1 \
+            --output tsv)
+
+          if [ -z "$FRONTEND_TAG" ]; then
+            echo "ERROR: No frontend image tag found in ACR."
+            exit 1
+          fi
+
+          if [ -z "$BACKEND_TAG" ]; then
+            echo "ERROR: No backend image tag found in ACR."
+            exit 1
+          fi
+
+          echo "frontend_tag=$FRONTEND_TAG" >> "$GITHUB_OUTPUT"
+          echo "backend_tag=$BACKEND_TAG" >> "$GITHUB_OUTPUT"
+
+          echo "Frontend image tag: $FRONTEND_TAG"
+          echo "Backend image tag: $BACKEND_TAG"
 
       - name: Scan backend image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ vars.ACR_LOGIN_SERVER }}/${{ vars.BACKEND_IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.BACKEND_IMAGE_NAME }}:${{ steps.image-tags.outputs.backend_tag }}
           format: table
           exit-code: '0'
           ignore-unfixed: true
@@ -53,40 +89,39 @@ jobs:
       - name: Scan frontend image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ vars.ACR_LOGIN_SERVER }}/${{ vars.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
+          image-ref: ${{ env.ACR_LOGIN_SERVER }}/${{ env.FRONTEND_IMAGE_NAME }}:${{ steps.image-tags.outputs.frontend_tag }}
           format: table
           exit-code: '0'
           ignore-unfixed: true
           vuln-type: os,library
           severity: CRITICAL,HIGH,MEDIUM
 
-      - name: Build backend
-        working-directory: App/backend
-        run: mvn --batch-mode clean verify -DskipTests
+      - name: Build backend for SonarCloud analysis
+        run: |
+          cd App/backend
+          mvn --batch-mode clean verify -DskipTests
 
-      - name: SonarCloud scan - Backend
+      - name: SonarCloud backend scan
         uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           projectBaseDir: App/backend
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_BACKEND_PROJECT_KEY }}
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-            -Dsonar.java.binaries=target/classes
-            -Dsonar.exclusions=**/test/**,**/*Test.java
+
+      - name: SonarCloud frontend scan
+        uses: SonarSource/sonarqube-scan-action@v5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - name: SonarCloud scan - Frontend
-        uses: SonarSource/sonarqube-scan-action@v5
         with:
           projectBaseDir: App/frontend
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_FRONTEND_PROJECT_KEY }}
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
-      - name: Send email notification
+      - name: Send security scan email
         if: always()
         uses: dawidd6/action-send-mail@v3
         with:
@@ -95,19 +130,15 @@ jobs:
           secure: true
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "Olive Bank - Security Scan Workflow Result: ${{ job.status }}"
-          to: ${{ secrets.SECURITY_ALERT_EMAIL_TO }}
+          subject: Olive Bank Security Scan - ${{ job.status }}
           from: ${{ secrets.SECURITY_ALERT_EMAIL_FROM }}
+          to: ${{ secrets.SECURITY_ALERT_EMAIL_TO }}
           body: |
-            Olive Bank security workflow has finished.
+            Olive Bank security scan workflow has completed.
 
-            Overall workflow status: ${{ job.status }}
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
+            Workflow status: ${{ job.status }}
 
-            Trivy scanned the backend and frontend container images.
-            SonarCloud scans were configured for both projects.
+            Frontend image tag: ${{ steps.image-tags.outputs.frontend_tag }}
+            Backend image tag: ${{ steps.image-tags.outputs.backend_tag }}
 
-            Review the workflow logs:
-            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            Please review the GitHub Actions logs for Trivy and SonarCloud scan results.
