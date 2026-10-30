@@ -15,7 +15,9 @@ public class CorsConfig implements WebMvcConfigurer {
                 .allowedOrigins(
                         "http://localhost:4200",
                         "http://localhost:8083",
-                        "https://olivebank-dev-frontend-b7f5a5gubqddc7bq.westus3-01.azurewebsites.net"
+                        "https://olivebank-dev-frontend-b7f5a5gubqddc7bq.westus3-01.azurewebsites.net",
+                        "https://rotimi.shop",
+                        "https://www.rotimi.shop"
                 )
                 .allowedMethods(
                         "GET",
