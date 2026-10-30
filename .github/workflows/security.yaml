@@ -1,3 +1,4 @@
+
 name: Manual Security Scans & Email Alert
 
 on:
@@ -158,7 +159,7 @@ jobs:
           secure: true
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: Olive Bank - Security Scan Workflow Result: ${{ job.status }}
+          subject: "Olive Bank - Security Scan Workflow Result: ${{ job.status }}"
           from: ${{ secrets.SECURITY_ALERT_EMAIL_FROM }}
           to: ${{ secrets.SECURITY_ALERT_EMAIL_TO }}
           body: |
