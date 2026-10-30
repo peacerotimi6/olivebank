@@ -1,3 +1,4 @@
+
 name: Manual Security Scans & Email Alert
 
 on:
@@ -40,9 +41,9 @@ jobs:
         run: az acr login --name "$ACR_NAME"
 
       - name: Scan backend image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ vars.ACR_LOGIN_SERVER }}/${{ vars.BACKEND_IMAGE_NAME }}:latest
+          image-ref: ${{ vars.ACR_LOGIN_SERVER }}/${{ vars.BACKEND_IMAGE_NAME }}:${{ github.sha }}
           format: table
           exit-code: '0'
           ignore-unfixed: true
@@ -50,9 +51,9 @@ jobs:
           severity: CRITICAL,HIGH,MEDIUM
 
       - name: Scan frontend image with Trivy
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ vars.ACR_LOGIN_SERVER }}/${{ vars.FRONTEND_IMAGE_NAME }}:latest
+          image-ref: ${{ vars.ACR_LOGIN_SERVER }}/${{ vars.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
           format: table
           exit-code: '0'
           ignore-unfixed: true
@@ -60,13 +61,13 @@ jobs:
           severity: CRITICAL,HIGH,MEDIUM
 
       - name: Build backend
-        working-directory: app/backend
+        working-directory: App/backend
         run: mvn --batch-mode clean verify -DskipTests
 
       - name: SonarCloud scan - Backend
         uses: SonarSource/sonarqube-scan-action@v5
         with:
-          projectBaseDir: app/backend
+          projectBaseDir: App/backend
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_BACKEND_PROJECT_KEY }}
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
@@ -78,7 +79,7 @@ jobs:
       - name: SonarCloud scan - Frontend
         uses: SonarSource/sonarqube-scan-action@v5
         with:
-          projectBaseDir: app/frontend
+          projectBaseDir: App/frontend
           args: >
             -Dsonar.projectKey=${{ secrets.SONAR_FRONTEND_PROJECT_KEY }}
             -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
@@ -94,11 +95,11 @@ jobs:
           secure: true
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: "SecureBank - Security Scan Workflow Result: ${{ job.status }}"
+          subject: "Olive Bank - Security Scan Workflow Result: ${{ job.status }}"
           to: ${{ secrets.SECURITY_ALERT_EMAIL_TO }}
           from: ${{ secrets.SECURITY_ALERT_EMAIL_FROM }}
           body: |
-            SecureBank security workflow has finished.
+            Olive Bank security workflow has finished.
 
             Overall workflow status: ${{ job.status }}
             Repository: ${{ github.repository }}
@@ -108,5 +109,5 @@ jobs:
             Trivy scanned the backend and frontend container images.
             SonarCloud scans were configured for both projects.
 
-            Review the workflow logs for individual scan results:
+            Review the workflow logs:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}

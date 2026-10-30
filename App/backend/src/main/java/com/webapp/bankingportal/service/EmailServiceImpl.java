@@ -1,3 +1,4 @@
+
 package com.webapp.bankingportal.service;
 
 import java.io.File;
@@ -18,6 +19,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class EmailServiceImpl implements EmailService {
 
+    private static final String FROM_EMAIL = "peacerotimi6@gmail.com";
+    private static final String FROM_NAME = "Olive Bank";
+
     private final JavaMailSender mailSender;
 
     public EmailServiceImpl(JavaMailSender mailSender) {
@@ -35,6 +39,7 @@ public class EmailServiceImpl implements EmailService {
             val message = mailSender.createMimeMessage();
             val helper = new MimeMessageHelper(message, true);
 
+            helper.setFrom(FROM_EMAIL, FROM_NAME);
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(text, true);
@@ -44,7 +49,7 @@ public class EmailServiceImpl implements EmailService {
             log.info("Sent email to {}", to);
             future.complete(null);
 
-        } catch (MessagingException | MailException e) {
+        } catch (Exception e) {
             log.error("Failed to send email to {}", to, e);
             future.completeExceptionally(e);
         }
@@ -198,6 +203,7 @@ public class EmailServiceImpl implements EmailService {
             val message = mailSender.createMimeMessage();
             val helper = new MimeMessageHelper(message, true);
 
+            helper.setFrom(FROM_EMAIL, FROM_NAME);
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(text, true);
@@ -207,8 +213,10 @@ public class EmailServiceImpl implements EmailService {
 
             mailSender.send(message);
 
-        } catch (MessagingException | MailException e) {
-            log.error("Failed to send email to {}", to, e);
+            log.info("Sent email with attachment to {}", to);
+
+        } catch (Exception e) {
+            log.error("Failed to send email with attachment to {}", to, e);
         }
     }
 }

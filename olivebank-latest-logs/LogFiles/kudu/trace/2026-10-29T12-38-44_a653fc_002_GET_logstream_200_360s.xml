@@ -1,0 +1,5 @@
+<step title="Incoming Request" date="2026-10-29T12:38:44.716" instance="a653fc" url="/logstream" method="GET" type="request" pid="731,1,14" Host="olive-bank-backend-dycxf5bdfme7bza4.scm.westus3-01.azurewebsites.net" User-Agent="AZURECLI/2.83.0 (HOMEBREW)" Accept-Encoding="identity" Authorization="Bea..." x-ms-client-request-id="a7bb22be-d395-11f1-a30f-e6916dbb2eb0" X-ARR-LOG-ID="a7bb22be-d395-11f1-a30f-e6916dbb2eb0" CLIENT-IP="92.41.127.80:32887" X-SITE-DEPLOYMENT-ID="olive-bank-backend" WAS-DEFAULT-HOSTNAME="olive-bank-backend-dycxf5bdfme7bza4.scm.westus3-01.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/logstream" X-Client-IP="92.41.127.80" X-Client-Port="32887" >
+  <step title="LogStreamHandlerMiddleware.Invoke" date="2026-10-29T12:38:44.736" /><!-- duration: 28ms -->
+  <step title="Error occurred" date="2026-10-29T12:44:44.761" type="error" text="LogStreamManager: ProcessRequest end" /><!-- duration: 4ms -->
+  <step title="Outgoing response" date="2026-10-29T12:44:44.769" type="response" statusCode="200" statusText="OK" /><!-- duration: 21ms -->
+</step><!-- duration: 360075ms -->
