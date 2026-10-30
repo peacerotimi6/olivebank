@@ -11,6 +11,7 @@ jobs:
   security-scan:
     name: Olive Bank Security Scan
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     env:
       ACR_NAME: ${{ vars.ACR_NAME }}
@@ -21,6 +22,34 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Validate GitHub configuration
+        shell: bash
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_ORGANIZATION: ${{ secrets.SONAR_ORGANIZATION }}
+          SONAR_BACKEND_PROJECT_KEY: ${{ secrets.SONAR_BACKEND_PROJECT_KEY }}
+          SONAR_FRONTEND_PROJECT_KEY: ${{ secrets.SONAR_FRONTEND_PROJECT_KEY }}
+        run: |
+          set -euo pipefail
+
+          for name in \
+            ACR_NAME \
+            ACR_LOGIN_SERVER \
+            BACKEND_IMAGE_NAME \
+            FRONTEND_IMAGE_NAME \
+            SONAR_TOKEN \
+            SONAR_ORGANIZATION \
+            SONAR_BACKEND_PROJECT_KEY \
+            SONAR_FRONTEND_PROJECT_KEY
+          do
+            if [ -z "${!name:-}" ]; then
+              echo "::error::Missing configuration: $name"
+              exit 1
+            fi
+          done
+
+          echo "Configuration validation passed."
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -39,7 +68,7 @@ jobs:
       - name: Login to Azure Container Registry
         run: az acr login --name "$ACR_NAME"
 
-      - name: Find latest frontend and backend image tags
+      - name: Retrieve frontend and backend image tags
         id: image-tags
         shell: bash
         run: |
@@ -60,20 +89,20 @@ jobs:
             --output tsv)
 
           if [ -z "$FRONTEND_TAG" ]; then
-            echo "ERROR: No frontend image tag found in ACR."
+            echo "::error::No frontend image found in ACR."
             exit 1
           fi
 
           if [ -z "$BACKEND_TAG" ]; then
-            echo "ERROR: No backend image tag found in ACR."
+            echo "::error::No backend image found in ACR."
             exit 1
           fi
 
           echo "frontend_tag=$FRONTEND_TAG" >> "$GITHUB_OUTPUT"
           echo "backend_tag=$BACKEND_TAG" >> "$GITHUB_OUTPUT"
 
-          echo "Frontend image tag: $FRONTEND_TAG"
-          echo "Backend image tag: $BACKEND_TAG"
+          echo "Frontend image tag retrieved successfully."
+          echo "Backend image tag retrieved successfully."
 
       - name: Scan backend image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
@@ -129,13 +158,20 @@ jobs:
           secure: true
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
-          subject: Olive Bank Security Scan - ${{ job.status }}
+          subject: Olive Bank - Security Scan Workflow Result: ${{ job.status }}
           from: ${{ secrets.SECURITY_ALERT_EMAIL_FROM }}
           to: ${{ secrets.SECURITY_ALERT_EMAIL_TO }}
           body: |
-            Olive Bank security scan workflow has completed.
+            Olive Bank security workflow has finished.
 
-            Workflow status: ${{ job.status }}
+            Overall workflow status: ${{ job.status }}
+
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
 
             Frontend image tag: ${{ steps.image-tags.outputs.frontend_tag }}
             Backend image tag: ${{ steps.image-tags.outputs.backend_tag }}
+
+            Review the workflow logs for Trivy and SonarCloud results:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
