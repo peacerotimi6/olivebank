@@ -13,6 +13,7 @@ spec:
       labels:
         app: webhook
     spec:
+      serviceAccountName: webhook-server
       containers:
         - name: webhook
           image: securebankdevacr.azurecr.io/webhook-server:v2
@@ -25,15 +26,14 @@ spec:
             requests:
               cpu: "100m"
               memory: "128Mi"
+          # /alert is POST-only, so an httpGet probe would always get 405
           livenessProbe:
-            httpGet:
-              path: /alert
+            tcpSocket:
               port: 9001
             initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
-            httpGet:
-              path: /alert
+            tcpSocket:
               port: 9001
             initialDelaySeconds: 2
             periodSeconds: 5

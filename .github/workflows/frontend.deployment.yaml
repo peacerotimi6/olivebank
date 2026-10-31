@@ -139,11 +139,24 @@ jobs:
         run: |
           set -euo pipefail
 
-          az webapp show \
+          HOST=$(az webapp show \
             --name "$WEBAPP_NAME" \
             --resource-group "$RESOURCE_GROUP" \
-            --query "{name:name,state:state,host:defaultHostName}" \
-            --output table
+            --query defaultHostName \
+            --output tsv)
 
-          echo "Deployed image:"
-          echo "$ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+          SITE_URL="https://$HOST/"
+
+          for attempt in $(seq 1 18); do
+            if curl --fail --silent --show-error --output /dev/null "$SITE_URL"; then
+              echo "Frontend is serving at $SITE_URL"
+              echo "Deployed image: $ACR_LOGIN_SERVER/$IMAGE_NAME:$IMAGE_TAG"
+              exit 0
+            fi
+
+            echo "Attempt $attempt/18: waiting for frontend startup..."
+            sleep 10
+          done
+
+          echo "::error::Frontend check failed at $SITE_URL"
+          exit 1

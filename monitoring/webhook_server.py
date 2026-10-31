@@ -22,7 +22,11 @@ async def receive_alert(request: Request):
     for alert in data.get("alerts", []):
         if alert.get("labels", {}).get("alertname") == "HighCPUUsage":
             print("Triggering self-healing...")
-            subprocess.run([
+            result = subprocess.run([
                 "kubectl", "delete", "pod", "-n", "securebank", "-l", "app=backend"
-            ])
+            ], capture_output=True, text=True)
+            if result.returncode != 0:
+                print("Self-healing failed:", result.stderr.strip())
+            else:
+                print(result.stdout.strip())
     return {"status": "received"}

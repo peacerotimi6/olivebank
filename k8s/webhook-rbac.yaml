@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: webhook-server
+  namespace: monitoring
+---
+# Lets the webhook delete backend pods in the securebank namespace for self-healing
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: webhook-pod-restarter
+  namespace: securebank
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: webhook-pod-restarter
+  namespace: securebank
+subjects:
+  - kind: ServiceAccount
+    name: webhook-server
+    namespace: monitoring
+roleRef:
+  kind: Role
+  name: webhook-pod-restarter
+  apiGroup: rbac.authorization.k8s.io
